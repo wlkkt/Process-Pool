@@ -28,6 +28,7 @@ public:
 
     void CloseChannel() // ¹Ø±ÕÁ¬½Óµ±Ç°¹ÜµÀµÄwfd
     {
+        std::cout << "¹Ø±Õµ±Ç°½ø³ÌÁ¬½Óµ½¹ÜµÀµÄwfd: " << _wfd << std::endl;
         close(_wfd);
     }
 
@@ -36,7 +37,8 @@ public:
         pid_t rid = waitpid(_subprocessid, nullptr, 0); // £¨×èÈûµÈ´ıµÄ×Ó½ø³Ìpid£¬Ö¸Ïò×Ó½ø³ÌµÄÍË³öĞÅÏ¢£¨ÒòÎªÃ»ÓĞĞ´¾ÍÖ±½ÓÉèÖÃÎª¿ÕÖ¸Õë£©£¬Ñ¡Ôñ×èÈûµÈ´ıµÄ·½Ê½£©·µ»ØÖµÊÇ×èÈû³É¹¦µÄ×Ó½ø³ÌµÄpid
         if (rid > 0)
         {
-            std::cout << "pid =  " << rid << " µÄ×Ó½ø³ÌÕıÔÚµÈ´ı " << std::endl; // ´òÓ¡×èÈû³É¹¦µÄ×Ó½ø³ÌµÄpid
+            std::cout << "pid = " << rid << " µÄ×Ó½ø³Ì±äÎª×èÈûµÈ´ı " << std::endl; // ´òÓ¡×èÈû³É¹¦µÄ×Ó½ø³ÌµÄpid
+            std::cout << std::endl;
         }
     }
 
@@ -46,36 +48,13 @@ private:
     std::string _name;
 };
 
-// ×Ó½ø³Ì´¦ÀíÅÉ·¢µÄÈÎÎñ£¨×Ó½ø³Ì»á´ÓÒÀ¾İrfd´Ó¹ÜµÀÖĞÄÃµ½ÈÎÎñÂë£©
-void work(int rfd)
-{
-    // ×Ó½ø³ÌÑ­»·µÈ´ı
-    int i = 1;
-    while (1)
-    {
-        int command = 0;
-        int n = read(rfd, &command, sizeof(command)); // OS»áÒÀ¾İrfd°ïÖú×Ó½ø³Ì»ñÈ¡ÓëËü¹ØÁªµÄ¹ÜµÀÖĞµÄÄÚÈİ
-        if (n == sizeof(int))
-        {
-            std::cout << "pid = " << getpid() << " µÄ×Ó½ø³ÌÕıÔÚÖ´ĞĞÈÎÎñ" << std::endl;
-            ExcuteTask(command); // ÒÀ¾İÈÎÎñÂëÖ´ĞĞÈÎÎñ
-            std::cout << std::endl;
-        }
-        else if (n == 0) // ¶Á¶Ë¶ÁÈ¡²»µ½ÄÚÈİÊ±½áÊø×Ó½ø³ÌµÄwork
-        {
-            std::cout << "pid = " << getpid() << " µÄ×Ó½ø³Ì¶ÁÈ¡²»µ½ÄÚÈİÁË" << std::endl;
-            break;
-        }
-    }
-}
-
 // ĞÎ²ÎÃüÃû¹æ·¶
 // const & ĞŞÊÎµÄÓ¦¸ÃÊÇÒ»¸öÊäÈëĞÍ²ÎÊı
 //& ĞŞÊÎµÄÓ¦¸ÃÊÇÒ»¸öÊäÈëÊä³öĞÍ²ÎÊı
 //* ĞŞÊÎµÄÓ¦¸ÃÊÇÒ»¸öÊä³öĞÍ²ÎÊı
 
 // ´´½¨¹ÜµÀºÍ½ø³Ì³Ø
-void CreatChannelAndSub(int num, std::vector<Channel>* channels)
+void CreatChannelAndSub(int num, std::vector<Channel>* channels, task_t task) // task_t taskÊÇ»Øµ÷º¯Êı£¬µ±×Ó½ø³ÌÖ´ĞĞforkÊ±»áÈ¥»Øµ÷Ö¸¶¨ºÃµÄÈÎÎñÎÄ¼şÖĞµÄworkº¯Êı£¬ÊµÏÖÁËÈÎÎñÎÄ¼şºÍ½ø³ÌÎÄ¼ş¼äµÄ½âñî
 {
     for (int i = 0; i < num; i++) // Ñ­»·´´½¨×Ó½ø³ÌºÍ¶ÔÓ¦µÄ¹ÜµÀ
     {
@@ -89,9 +68,28 @@ void CreatChannelAndSub(int num, std::vector<Channel>* channels)
         pid_t id = fork();
         if (id == 0)
         {
+            // ´¦ÀíµÚ¶ş´Î´´½¨¹ÜµÀÊ±µÄ×Ó½ø³ÌÖĞ»¹ÓĞÖ¸ÏòµÚÒ»¸ö¹ÜµÀµÄrfd
+            if (!channels->empty()) // ¹ÜµÀÊı×é²»Îª¿Õ£¬¼´µ½ÁËµÚ¶ş´Î´´½¨¹ÜµÀÊ±²Å»áÖ´ĞĞ¸ÃÅĞ¶ÏÓï¾ä
+            {
+                for (auto& channel : *channels) // Ñ­»·±éÀúÖ®Ç°µÄ¹ÜµÀ²¢ÄÃµ½ÕâĞ©¹ÜµÀµÄrfd£¬È»ºó¹Ø±Õµ±Ç°½ø³ÌµÄÕâĞ©rfd
+                {
+                    channel.CloseChannel();
+                }
+            }
+            std::cout << std::endl;
+
+            sleep(5);
+
             // ×Ó½ø³Ì
             close(pipefd[1]); // ¹Ø±Õ×Ó½ø³ÌµÄwfd
-            work(pipefd[0]);  // ×Ó½ø³ÌµÈ´ı²¢´¦Àí¸¸½ø³ÌÅÉ·¢µÄÈÎÎñ
+            // work(pipefd[0]);  // ×Ó½ø³ÌµÈ´ı²¢´¦Àí¸¸½ø³ÌÅÉ·¢µÄÈÎÎñ
+
+            // dup2(pipefd[0],0);//×Ó½ø³Ì²»½ö¿ÉÒÔ´Ó¹ÜµÀÖĞ£¬»¹¿ÉÒÔ´Ó±ê×¼ÊäÈëÖĞ»ñÈ¡ÈÎÎñÂë
+            // work();//ÎÒÃÇ²»¸øwork´«rfd¾Í¿ÉÒÔ¶Ï¾ø×Ó½ø³Ì´Ó¹ÜµÀÖĞ»ñÈ¡ÈÎÎñÂë,ÕâÑù¾Í½øÒ»²½Íê³ÉÁË¹ÜµÀºÍ×Ó½ø³Ì¼äÂß¼­µÄ½âñî
+
+            dup2(pipefd[0], 0); // ×Ó½ø³Ì²»½ö¿ÉÒÔ´Ó¹ÜµÀÖĞ£¬»¹¿ÉÒÔ´Ó±ê×¼ÊäÈëÖĞ»ñÈ¡ÈÎÎñÂë£¬ÕâÖÖ·½·¨Ê¹µÃ×Ó½ø³Ì¿ÉÒÔÏñ´¦Àí±ê×¼ÊäÈëÒ»Ñù´¦ÀíÀ´×Ô¹ÜµÀµÄÊı¾İ£¬´Ó¶øÌá¸ßÁË´úÂëµÄÍ¨ÓÃĞÔºÍ¿ÉÒÆÖ²ĞÔ¡£
+            task();             // ½«workÒ²ÊÓÎªÒ»¸öÈÎÎñ
+
             close(pipefd[0]); // ¹Ø±Õ×Ó½ø³ÌµÄrfd
             exit(0);          // ×Ó½ø³ÌÍË³ö
         }
@@ -113,7 +111,7 @@ void TestForProcessPoolAndSub(std::vector<Channel>& channels)
     std::cout << "   ¹ÜµÀÃû    " << "   ¹ÜµÀ¶ÔÓ¦µÄ×Ó½ø³Ìpid   " << "   »áÏòµ±Ç°¹ÜµÀĞ´ÈëµÄwfd   " << std::endl;
     for (auto& Channel : channels)
     {
-        std::cout << " " << Channel.GetName() << "          " << Channel.GetProcessID() << "             " << Channel.GetWfd() << std::endl;
+        std::cout << " " << Channel.GetName() << "          " << Channel.GetProcessID() << "                  " << Channel.GetWfd() << std::endl;
     }
     std::cout << "=========================================================" << std::endl;
 }
@@ -170,17 +168,13 @@ void CtrlProcess(std::vector<Channel>& Channels, int time = -1) // Ä¬ÈÏÒ»Ö±Ïò×Ó½
     }
 }
 
-// »ØÊÕ¹ÜµÀºÍ×Ó½ø³Ì
+// »ØÊÕ¹ÜµÀºÍ×Ó½ø³Ì(ÊÍ·Å¶ø²»ÊÇµÈ´ı)
 void CleanUpChannelAndSubProcess(std::vector<Channel>& Channels)
 {
     for (auto& i : Channels)
     {
-        i.CloseChannel();
-    }
-
-    for (auto& i : Channels)
-    {
-        i.wait();
+        i.CloseChannel(); // ÏÈ¹Ø±ÕĞ´¶Ëwfd
+        i.wait();         // È»ºóÈÃ×Ó½ø³Ì×èÈûµÈ´ı
     }
 }
 
@@ -198,26 +192,24 @@ int main(int agrc, char* argv[])
 
     LoadTask(); // ¼ÓÔØÈÎÎñ
     std::cout << "¼ÓÔØÈÎÎñ³É¹¦..." << std::endl;
-    std::cout << std::endl;
 
     std::vector<Channel> Channels; // ¶Ô¹ÜµÀµÄ´¦Àí±ä³ÉÁË¶ÔÊı×éÖĞChannels¶ÔÏóµÄÔöÉ¾²é¸Ä
 
     // 1¡¢´´½¨¹ÜµÀºÍ½ø³Ì³Ø
-    CreatChannelAndSub(num, &Channels);
+    CreatChannelAndSub(num, &Channels, work); // ¹æ¶¨×Ó½ø³Ì´´¼Ûºó»á»Øµ÷workº¯Êı
 
     TestForProcessPoolAndSub(Channels); // ¼ì²â½ø³Ì³ØºÍ¹ÜµÀÊÇ·ñ´´½¨³É¹¦£¨µ½ÕâÀïËùÓĞ¹ÜµÀºÍ×Ó½ø³ÌµÄÁ¬½Ó¹ØÏµÒÑ¾­½¨Á¢Íê³É£©
     std::cout << "´´½¨²¢¹ØÁª×Ó½ø³ÌÓë¹ÜµÀ³É¹¦..." << std::endl;
     std::cout << std::endl;
 
-    // 2¡¢Ïò×Ó½ø³ÌÅÉ·¢ÈÎÎñ£¨Ê®´Î£©
-    CtrlProcess(Channels, 10);
-    std::cout << std::endl;
+    // 2¡¢Ïò×Ó½ø³ÌÅÉ·¢ÈÎÎñ
+    CtrlProcess(Channels, 4);
+    sleep(2);
     std::cout << "×Ó½ø³Ì´¦ÀíÈÎÎñ³É¹¦..." << std::endl;
+    std::cout << std::endl;
 
     // 3¡¢»ØÊÕ¹ÜµÀºÍ×Ó½ø³Ì
     CleanUpChannelAndSubProcess(Channels);
-    std::cout << std::endl;
     std::cout << "»ØÊÕ¹ÜµÀºÍ×Ó½ø³Ì³É¹¦.." << std::endl;
-
+    std::cout << std::endl;
     return 0;
-}

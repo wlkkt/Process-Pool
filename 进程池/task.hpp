@@ -1,11 +1,3 @@
-/*
- * @Author: error: error: git config user.name & please set dead value or install git && error: git config user.email & please set dead value or install git & please set dead value or install git
- * @Date: 2024-05-10 21:01:58
- * @LastEditors: error: error: git config user.name & please set dead value or install git && error: git config user.email & please set dead value or install git & please set dead value or install git
- * @LastEditTime: 2024-05-11 22:33:53
- * @FilePath: /2024.5.10/Task.hpp
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
 #pragma once
 #include <iostream>
 #include <ctime>
@@ -20,33 +12,30 @@ typedef void (*task_t)(); // task_t 函数指针类型（task_t是一个类型不是一个指针）
 task_t tasks[TaskNum]; // 创建一个task_t函数指针类型的数组tasks,数组中存放的都是函数指针
 
 // 打印任务
-task_t Print()
+void Print()
 {
     std::cout << "I am a print task" << std::endl;
-    return 0;
 }
 
 // 下载任务
-task_t DownLoad()
+void DownLoad()
 {
     std::cout << "I am a DownLoad task" << std::endl;
-    return 0;
 }
 
 // 刷新任务
-task_t Flush()
+void Flush()
 {
     std::cout << "I am a Flush task" << std::endl;
-    return 0;
 }
 
 // 加载任务（将任务放入函数指针数组中）
 void LoadTask()
 {
     srand(time(nullptr) ^ getpid() ^ 17777); // 依据时间戳 与 当前进程的pid亦或的结果使得“种子”更加的随机，当然也可以再亦或上其它内容
-    tasks[0] = Print();                      // 第一个函数指针指向打印任务
-    tasks[1] = DownLoad();                   // 第二个函数指针指向下载任务
-    tasks[2] = Flush();                      // 第三个函数指针指向刷新任务
+    tasks[0] = Print;                        // 第一个函数指针指向打印任务
+    tasks[1] = DownLoad;                     // 第二个函数指针指向下载任务
+    tasks[2] = Flush;                        // 第三个函数指针指向刷新任务
 }
 
 // 执行任务
@@ -61,4 +50,54 @@ void ExcuteTask(int number)
 int SelectTask()
 {
     return rand() % TaskNum; // 返回随机的任务码
+}
+
+// // 版本一：
+// //  子进程处理派发的任务（子进程会从依据rfd从管道中拿到任务码）
+// void work(int rfd)
+// {
+//     // 子进程循环等待
+//     int i = 1;
+//     while (1)
+//     {
+//         int command = 0;
+//         int n = read(rfd, &command, sizeof(command)); // OS会依据rfd帮助子进程获取与它关联的管道中的内容
+//         if (n == sizeof(int))
+//         {
+//             std::cout << "pid = " << getpid() << " 的子进程正在执行任务" << std::endl;
+//             ExcuteTask(command); // 依据任务码执行任务
+//             std::cout << std::endl;
+//         }
+//         else if (n == 0) // 读端读取不到内容时结束子进程的work
+//         {
+//             std::cout << "pid = " << getpid() << " 的子进程读取不到内容了" << std::endl;
+//             break;
+//         }
+//     }
+// }
+
+// 版本二：
+// 子进程的任务
+void work()
+{
+    // 子进程循环处理任务
+    int i = 1;
+    while (1)
+    {
+        int command = 0;
+        int n = read(0, &command, sizeof(command)); // OS会依据rfd帮助子进程获取与它关联的管道中的内容
+        std::cout << std::endl;
+        if (n == sizeof(int))
+        {
+            std::cout << "pid = " << getpid() << " 的子进程正在执行任务" << std::endl;
+            ExcuteTask(command); // 依据任务码执行任务
+            std::cout << std::endl;
+            sleep(1);
+        }
+        else if (n == 0) // 读端读取不到内容时结束子进程的work
+        {
+            std::cout << "pid = " << getpid() << " 的子进程读取不到内容了" << std::endl;
+            break;
+        }
+    }
 }
